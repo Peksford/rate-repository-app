@@ -4,6 +4,8 @@ import Text from './Text';
 import { View } from 'react-native';
 import { useFormik } from 'formik';
 import * as yup from 'yup';
+import useSignIn from '../hooks/useSignIn';
+import { useNavigate } from 'react-router-native';
 
 const styles = StyleSheet.create({
   flexContainer: {
@@ -81,6 +83,7 @@ const SignInForm = ({ onSubmit }) => {
         {formik.touched.password && formik.errors.password && (
           <Text style={{ color: 'red' }}>{formik.errors.password}</Text>
         )}
+
         <Pressable onPress={formik.handleSubmit} style={styles.button}>
           <Text style={styles.buttonText}>Sign in</Text>
         </Pressable>
@@ -90,8 +93,21 @@ const SignInForm = ({ onSubmit }) => {
 };
 
 const SignIn = () => {
-  const onSubmit = (values) => {
-    console.log(values);
+  const [signIn] = useSignIn();
+  const navigate = useNavigate();
+
+  const onSubmit = async (values) => {
+    const { username, password } = values;
+
+    try {
+      const data = await signIn({ username, password });
+      if (data) {
+        console.log('SignInData', data);
+        navigate('/');
+      }
+    } catch (e) {
+      console.error(e.message);
+    }
   };
 
   return <SignInForm onSubmit={onSubmit} />;
