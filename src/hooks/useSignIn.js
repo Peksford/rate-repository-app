@@ -28,13 +28,13 @@ const useSignIn = () => {
         variables: { username, password },
       });
       if (data && data.authenticate && data.authenticate.accessToken) {
-        console.log('data', data);
         await authStorage.setAccessToken(data.authenticate.accessToken);
         await apolloClient.resetStore();
       }
       return data;
     } catch (e) {
       console.error('Error during sign in: ', e);
+      throw new Error(e.message);
     }
   };
 

@@ -4,118 +4,211 @@ import {
   StyleSheet,
   ActivityIndicator,
   Text,
+  Pressable,
 } from 'react-native';
-import RepositoryItem from './RepositoryItem';
-// import useRepositories from '../hooks/useRepositories';
-// import { useState, useEffect } from 'react';
-import { useQuery } from '@apollo/client';
-
-import { GET_REPOSITORIES } from '../graphql/queries';
+import * as React from 'react';
+import { useNavigate } from 'react-router-native';
+import { RepositoryItem } from './RepositoryItem';
+import useRepositories from '../hooks/useRepositories';
+// import { useQuery } from '@apollo/client';
+import {
+  Button,
+  Menu,
+  Divider,
+  PaperProvider,
+  Searchbar,
+} from 'react-native-paper';
+// import { GET_REPOSITORIES } from '../graphql/queries';
+import { useState, useEffect } from 'react';
+import { useDebounce } from 'use-debounce';
 
 const styles = StyleSheet.create({
   separator: {
     height: 10,
   },
+  container: {
+    flex: 1,
+  },
 });
-
-// const repositories = [
-//   {
-//     id: 'jaredpalmer.formik',
-//     fullName: 'jaredpalmer/formik',
-//     description: 'Build forms in React, without the tears',
-//     language: 'TypeScript',
-//     forksCount: 1589,
-//     stargazersCount: 21553,
-//     ratingAverage: 88,
-//     reviewCount: 4,
-//     ownerAvatarUrl: 'https://avatars2.githubusercontent.com/u/4060187?v=4',
-//   },
-//   {
-//     id: 'rails.rails',
-//     fullName: 'rails/rails',
-//     description: 'Ruby on Rails',
-//     language: 'Ruby',
-//     forksCount: 18349,
-//     stargazersCount: 45377,
-//     ratingAverage: 100,
-//     reviewCount: 2,
-//     ownerAvatarUrl: 'https://avatars1.githubusercontent.com/u/4223?v=4',
-//   },
-//   {
-//     id: 'django.django',
-//     fullName: 'django/django',
-//     description: 'The Web framework for perfectionists with deadlines.',
-//     language: 'Python',
-//     forksCount: 21015,
-//     stargazersCount: 48496,
-//     ratingAverage: 73,
-//     reviewCount: 5,
-//     ownerAvatarUrl: 'https://avatars2.githubusercontent.com/u/27804?v=4',
-//   },
-//   {
-//     id: 'reduxjs.redux',
-//     fullName: 'reduxjs/redux',
-//     description: 'Predictable state container for JavaScript apps',
-//     language: 'TypeScript',
-//     forksCount: 13902,
-//     stargazersCount: 52869,
-//     ratingAverage: 0,
-//     reviewCount: 0,
-//     ownerAvatarUrl: 'https://avatars3.githubusercontent.com/u/13142323?v=4',
-//   },
-// ];
 
 const ItemSeparator = () => <View style={styles.separator} />;
 
-const RepositoryList = () => {
-  // const [repositories, setRepositories] = useState();
-  // const { repositories } = useRepositories();
+const ReposityListHeader = React.memo(
+  ({
+    setOrderBy,
+    setOrderDirection,
+    menuText,
+    setMenuText,
+    searchQuery,
+    setSearchQuery,
+  }) => {
+    useEffect(() => {}, [menuText]);
 
-  const { data, loading, error } = useQuery(GET_REPOSITORIES, {
-    fetchPolicy: 'cache-and-network',
-    pollInterval: 2000,
-    // Other options
+    const [visible, setVisible] = useState(false);
+    const openMenu = () => setVisible(true);
+    const closeMenu = () => setVisible(false);
+
+    return (
+      <View
+        style={{
+          paddingTop: 50,
+        }}
+      >
+        {/* <SearchbarMemo
+          searchQuery={searchText}
+          setSearchQuery={setSearchText}
+        /> */}
+        <Searchbar
+          placeholder="Search"
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+        />
+
+        <Menu
+          visible={visible}
+          onDismiss={closeMenu}
+          anchor={<Button onPress={openMenu}>{menuText}</Button>}
+        >
+          <Menu.Item
+            onPress={() => {
+              setMenuText('Latest repositories');
+              setOrderBy('CREATED_AT');
+              setOrderDirection('DESC');
+              closeMenu();
+            }}
+            title="Latest repositories"
+          />
+          <Menu.Item
+            onPress={() => {
+              setMenuText('Highest rated repositories');
+              setOrderBy('RATING_AVERAGE');
+              setOrderDirection('DESC');
+              closeMenu();
+            }}
+            title="Highest rated repositories"
+          />
+          <Divider />
+          <Menu.Item
+            onPress={() => {
+              setMenuText('Lowest rated repositories');
+              setOrderBy('RATING_AVERAGE');
+              setOrderDirection('ASC');
+              closeMenu();
+            }}
+            title="Lowest rated repositories"
+          />
+        </Menu>
+      </View>
+    );
+  }
+);
+
+ReposityListHeader.displayName = 'ReposityListHeader';
+
+export class RepositoryListContainer extends React.Component {
+  renderHeader = () => {
+    const props = this.props;
+
+    return (
+      <ReposityListHeader
+        setOrderBy={props.setOrderBy}
+        setOrderDirection={props.setOrderDirection}
+        menuText={props.menuText}
+        setMenuText={props.setMenuText}
+        searchQuery={props.searchQuery}
+        setSearchQuery={props.setSearchQuery}
+        orderDirection={props.orderDirection}
+        orderBy={props.orderBy}
+      />
+    );
+  };
+
+  render() {
+    const { data } = this.props;
+
+    if (!data || !data.repositories) {
+      return null;
+    }
+    const repositoryNodes = data.repositories
+      ? data.repositories.edges.map((edge) => edge.node)
+      : [];
+
+    return (
+      <PaperProvider>
+        <View style={styles.container}>
+          <FlatList
+            ListHeaderComponent={this.renderHeader}
+            data={repositoryNodes}
+            ItemSeparatorComponent={ItemSeparator}
+            // other props
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => this.props.navigate(`/repository/${item.id}`)}
+                style={styles.button}
+              >
+                <RepositoryItem repository={item} />
+              </Pressable>
+            )}
+            keyExtractor={(item) => item.id}
+            onEndReached={this.props.onEndReach}
+            onEndReachedThreshold={0.5}
+          />
+        </View>
+      </PaperProvider>
+    );
+  }
+}
+
+const RepositoryList = () => {
+  const [orderBy, setOrderBy] = useState('CREATED_AT');
+  const [orderDirection, setOrderDirection] = useState('DESC');
+  const [menuText, setMenuText] = useState('Latest repositories');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery] = useDebounce(searchQuery, 500);
+
+  const navigate = useNavigate();
+
+  const { repositories, loading, error, fetchMore } = useRepositories({
+    first: 8,
+    orderBy,
+    orderDirection,
+    debouncedQuery,
   });
 
-  if (loading)
+  if (loading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="red" />
       </View>
     );
-  if (error)
+  }
+
+  if (error) {
     return (
       <View style={styles.container}>
         <Text>Error: {error.message}</Text>
       </View>
     );
+  }
 
-  // const fetchRepositories = async () => {
-  //   // Replace the IP address part with your own IP address!
-  //   const response = await fetch('http://192.168.1.3:5001/api/repositories');
-  //   const json = await response.json();
-
-  //   console.log(json);
-
-  //   setRepositories(json);
-  // };
-
-  // useEffect(() => {
-  //   fetchRepositories();
-  // }, []);
-
-  // Get the nodes from the edges array
-  const repositoryNodes = data
-    ? data.repositories.edges.map((edge) => edge.node)
-    : [];
+  const onEndReach = () => {
+    console.log('You have reached the end of the list');
+    fetchMore();
+  };
 
   return (
-    <FlatList
-      data={repositoryNodes}
-      ItemSeparatorComponent={ItemSeparator}
-      // other props
-      renderItem={({ item }) => <RepositoryItem item={item} />}
-      keyExtractor={(item) => item.id}
+    <RepositoryListContainer
+      setOrderDirection={setOrderDirection}
+      setOrderBy={setOrderBy}
+      data={repositories}
+      menuText={menuText}
+      setMenuText={setMenuText}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+      navigate={navigate}
+      onEndReach={onEndReach}
+      direction={orderDirection}
+      orderBy={orderBy}
     />
   );
 };

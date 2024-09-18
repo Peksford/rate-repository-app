@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { Link } from 'react-router-native';
+import { Link, useNavigate } from 'react-router-native';
 import Constants from 'expo-constants';
 import theme from '../theme';
 import Text from './Text';
@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     color: theme.headerProperties.color,
     fontSize: theme.headerProperties.size,
     fontWeight: theme.fontWeights.bold,
-    marginHorizontal: 2,
+    marginHorizontal: 10,
   },
   scrollView: {
     backgroundColor: 'purple',
@@ -33,24 +33,28 @@ const styles = StyleSheet.create({
 const PressableText = () => {
   const authStorage = useAuthStorage();
   const apolloClient = useApolloClient();
+  const navigate = useNavigate();
+
   const { data, loading, error } = useQuery(ME, {
-    fetchPolicy: 'cache-and-network',
+    fetchPolicy: 'network-only',
     pollInterval: 2000,
     // Other options
   });
+
   if (loading) {
     return <Text> Loading </Text>;
   }
   if (error) {
     return <Text> Error </Text>;
   }
-  console.log('ME data: ', data.me);
 
   const user = data.me ? data.me.username : null;
 
   const handleLogOut = async () => {
     await authStorage.removeAccessToken();
     await apolloClient.resetStore();
+
+    navigate('/');
   };
 
   return (
@@ -59,13 +63,29 @@ const PressableText = () => {
         <Text style={styles.textWhite}>Repositories</Text>
       </Link>
       {user ? (
-        <Pressable onPress={handleLogOut} style={styles.button}>
+        <Link to="/create">
+          <Text style={styles.textWhite}>Create</Text>
+        </Link>
+      ) : null}
+      {user ? (
+        <Link to="/reviews">
+          <Text style={styles.textWhite}>My Reviews</Text>
+        </Link>
+      ) : null}
+      {user ? (
+        <Pressable onPress={handleLogOut}>
           <Text style={styles.textWhite}>Sign out</Text>
         </Pressable>
       ) : (
-        <Link to="/signin">
-          <Text style={styles.textWhite}>Sign In</Text>
-        </Link>
+        <>
+          <Link to="/signin">
+            <Text style={styles.textWhite}>Sign In</Text>
+          </Link>
+
+          <Link to="/signup">
+            <Text style={styles.textWhite}>Sign Up</Text>
+          </Link>
+        </>
       )}
     </View>
   );
